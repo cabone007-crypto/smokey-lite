@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#14110F">
+<title>Smokey AI Lite</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ================= LOCK SCREEN ================= -->
+<div id="lockScreen" class="lock-screen">
+  <div class="ember-mark" id="emberMark"></div>
+  <h1 class="lock-title">SMOKEY</h1>
+  <p class="lock-sub" id="lockSub">Vendos PIN-in</p>
+
+  <div class="pin-dots" id="pinDots">
+    <span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="pin-pad" id="pinPad">
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <button class="ghost" id="biometricBtn">⎔</button><button data-k="0">0</button><button class="ghost" id="delBtn">⌫</button>
+  </div>
+
+  <p class="lock-error" id="lockError"></p>
+</div>
+
+<!-- ================= APP SHELL ================= -->
+<div id="app" class="app hidden">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="ember-dot" id="statusDot"></span>
+      <span class="brand-name">SMOKEY <span class="lite">LITE</span></span>
+    </div>
+    <div class="status-line" id="statusLine">duke kontrolluar…</div>
+    <button class="icon-btn" id="lockBtn" title="Kyç">⎔</button>
+  </header>
+
+  <main class="chat" id="chatLog">
+    <div class="sys-msg">
+      Smokey Lite është gati. Punon direkt nga telefoni, pa varësi nga PC-ja.
+    </div>
+  </main>
+
+  <form class="composer" id="composer">
+    <textarea id="input" rows="1" placeholder="Shkruaj një mesazh…" autocomplete="off"></textarea>
+    <button type="submit" id="sendBtn" class="send-btn" aria-label="Dërgo">↑</button>
+  </form>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
