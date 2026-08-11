@@ -172,6 +172,32 @@ body{
 }
 .bubble.thinking{ color:var(--ash-dim); font-family:var(--font-mono); font-size:12.5px; }
 
+.attach-chip{
+  display:flex; align-items:center; gap:8px;
+  margin:0 12px 8px;
+  padding:6px 10px;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--ash-dim);
+}
+.attach-chip span{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ash); }
+.attach-chip button{
+  background:none; border:none; color:var(--ash-dim); font-size:13px; padding:2px 4px;
+}
+.attach-btn{
+  width:38px; height:38px; border-radius:50%;
+  background:var(--panel-2); border:1px solid var(--line);
+  color:var(--ash-dim); font-size:16px; flex-shrink:0;
+}
+.attach-btn.active{ border-color:var(--ember); color:var(--ember); }
+.attach-btn.recording{
+  background:#3A1712; border-color:#E24B2A; color:#E24B2A;
+  animation:pulse 1.4s ease-in-out infinite;
+}
+
 .composer{
   display:flex; align-items:flex-end; gap:8px;
   padding:10px 12px;
@@ -191,6 +217,15 @@ body{
   max-height:120px;
 }
 .composer textarea:focus{ outline:none; border-color:var(--ember-dim); }
+.bubble.chart{
+  max-width:94%;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  align-self:flex-start;
+  padding:12px;
+}
+.bubble.chart canvas{ max-width:100%; }
+
 .send-btn{
   width:38px; height:38px; border-radius:50%;
   background:var(--ember); color:#1A0D07;
