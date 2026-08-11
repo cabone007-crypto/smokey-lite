@@ -24,9 +24,9 @@ const attachChip = $("attachChip"), attachName = $("attachName"), attachRemove =
 
 let attachedFile = null; // { name, kind:'docx'|'xlsx', text, chartData }
 
-attachBtn.addEventListener("click", ()=> fileInput.click());
+if(attachBtn && fileInput) attachBtn.addEventListener("click", ()=> fileInput.click());
 
-fileInput.addEventListener("change", async ()=>{
+if(fileInput) fileInput.addEventListener("change", async ()=>{
   const file = fileInput.files[0];
   fileInput.value = "";
   if(!file) return;
@@ -59,12 +59,12 @@ fileInput.addEventListener("change", async ()=>{
   }
 });
 
-attachRemove.addEventListener("click", clearAttachment);
+if(attachRemove) attachRemove.addEventListener("click", clearAttachment);
 
 function clearAttachment(){
   attachedFile = null;
-  attachChip.classList.add("hidden");
-  attachBtn.classList.remove("active");
+  if(attachChip) attachChip.classList.add("hidden");
+  if(attachBtn) attachBtn.classList.remove("active");
 }
 
 // Nxjerr labels/vlera nga rreshtat e Excel-it për grafik automatik
@@ -114,7 +114,7 @@ const recordBtn = $("recordBtn");
 const TRANSCRIBE_URL = CONFIG.PROXY_URL.replace(/\/chat$/, "/transcribe");
 let mediaRecorder = null, audioChunks = [], isRecording = false, recTimer = null, recSeconds = 0;
 
-recordBtn.addEventListener("click", async ()=>{
+if(recordBtn) recordBtn.addEventListener("click", async ()=>{
   if(isRecording){ stopRecording(); return; }
   try{
     const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
