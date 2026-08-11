@@ -1,0 +1,123 @@
+/* ============================================================
+   CLOUDFLARE WORKER — proxy për Groq (chat + transkriptim zanor)
+   Kjo skedë NUK shkon te telefoni. Vendoset te dashboard.cloudflare.com
+   → Workers & Pages → Create Worker → ngjit këtë kod → Deploy.
+   Pastaj te Settings → Variables shto: GROQ_API_KEY = <çelësi yt nga console.groq.com>
+   ============================================================ */
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    const cors = {
+      "Access-Control-Allow-Origin": "*", // ndrysho me domain-in tënd real pas deploy
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+    };
+
+    // CORS preflight — trajtohet PARA çdo kontrolli tjetër
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: cors });
+    }
+
+    // ---- DIAGNOSTIKIM: hap /debug në browser për të parë çfarë ndodh ----
+    if (url.pathname === "/debug") {
+      const hasKey = !!env.GROQ_API_KEY;
+      let groqStatus = "s'u testua";
+      let groqBody = "";
+      if (hasKey) {
+        try {
+          const testRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${env.GROQ_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "llama-3.3-70b-versatile",
+              messages: [{ role: "user", content: "test" }],
+            }),
+          });
+          groqStatus = testRes.status;
+          groqBody = await testRes.text();
+        } catch (e) {
+          groqStatus = "gabim rrjeti: " + e.message;
+        }
+      }
+      return new Response(JSON.stringify({
+        "1_GROQ_API_KEY_ekziston": hasKey,
+        "2_Groq_status_kodi": groqStatus,
+        "3_Groq_pergjigje": groqBody,
+      }, null, 2), {
+        headers: { "Content-Type": "application/json", ...cors },
+      });
+    }
+
+    // ---- TRANSKRIPTIM ZANOR: /transcribe (Groq Whisper) ----
+    if (url.pathname === "/transcribe") {
+      if (request.method !== "POST") {
+        return new Response("Method not allowed", { status: 405, headers: cors });
+      }
+      try {
+        const incoming = await request.formData();
+        const audioFile = incoming.get("file");
+        const model = incoming.get("model") || "whisper-large-v3-turbo";
+
+        const groqForm = new FormData();
+        groqForm.append("file", audioFile, "recording.webm");
+        groqForm.append("model", model);
+        groqForm.append("response_format", "json");
+
+        const groqRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${env.GROQ_API_KEY}` },
+          body: groqForm,
+        });
+
+        const data = await groqRes.json();
+        return new Response(JSON.stringify({ text: data.text || "", raw: data }), {
+          headers: { "Content-Type": "application/json", ...cors },
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...cors },
+        });
+      }
+    }
+
+    // ---- CHAT: /chat (parazgjedhur) ----
+    if (request.method !== "POST") {
+      return new Response("Method not allowed", { status: 405, headers: cors });
+    }
+
+    try {
+      const body = await request.json();
+
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${env.GROQ_API_KEY}`, // çelësi mbetet vetëm këtu, kurrë te telefoni
+        },
+        body: JSON.stringify({
+          model: body.model || "llama-3.3-70b-versatile",
+          messages: body.messages,
+          temperature: 0.7,
+        }),
+      });
+
+      const data = await groqRes.json();
+      const reply = data.choices?.[0]?.message?.content || "S'mora përgjigje nga modeli.";
+
+      return new Response(JSON.stringify({ reply }), {
+        headers: { "Content-Type": "application/json", ...cors },
+      });
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...cors },
+      });
+    }
+  },
+};
