@@ -49,12 +49,23 @@
     </div>
   </main>
 
+  <div class="attach-chip hidden" id="attachChip">
+    <span id="attachName"></span>
+    <button type="button" id="attachRemove">✕</button>
+  </div>
+
   <form class="composer" id="composer">
+    <button type="button" class="attach-btn" id="attachBtn" aria-label="Bashkangjit file" title="Bashkangjit .docx/.xlsx">📎</button>
+    <button type="button" class="attach-btn" id="recordBtn" aria-label="Regjistro bisedë" title="Regjistro dhe transkripto">🎙️</button>
+    <input type="file" id="fileInput" accept=".docx,.xlsx" hidden>
     <textarea id="input" rows="1" placeholder="Shkruaj një mesazh…" autocomplete="off"></textarea>
     <button type="submit" id="sendBtn" class="send-btn" aria-label="Dërgo">↑</button>
   </form>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
