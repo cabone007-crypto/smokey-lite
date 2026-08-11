@@ -6,7 +6,7 @@
 // ---------- KONFIGURIM (ndrysho këto për setup-in tënd) ----------
 const CONFIG = {
   // URL e Cloudflare Worker-it që fsheh Groq API key-in (shih worker.js)
-  PROXY_URL: "https://YOUR-WORKER-NAME.workers.dev/chat",
+  PROXY_URL: "https://smokey-proxy.cabone007.workers.dev/chat",
   // Modeli Groq (falas, i shpejtë)
   MODEL: "llama-3.3-70b-versatile",
   // Adresa e backend-it në PC (Tailscale) — përdoret VETËM për status/sync, jo për chat
