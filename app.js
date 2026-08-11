@@ -19,8 +19,162 @@ const lockScreen = $("lockScreen"), app = $("app");
 const pinDots = $("pinDots"), lockError = $("lockError"), lockSub = $("lockSub");
 const chatLog = $("chatLog"), composer = $("composer"), input = $("input");
 const statusDot = $("statusDot"), statusLine = $("statusLine");
+const attachBtn = $("attachBtn"), fileInput = $("fileInput");
+const attachChip = $("attachChip"), attachName = $("attachName"), attachRemove = $("attachRemove");
 
-let pinBuffer = "";
+let attachedFile = null; // { name, kind:'docx'|'xlsx', text, chartData }
+
+attachBtn.addEventListener("click", ()=> fileInput.click());
+
+fileInput.addEventListener("change", async ()=>{
+  const file = fileInput.files[0];
+  fileInput.value = "";
+  if(!file) return;
+  const ext = file.name.split(".").pop().toLowerCase();
+  attachBtn.classList.add("active");
+  attachName.textContent = "duke lexuar " + file.name + "…";
+  attachChip.classList.remove("hidden");
+
+  try{
+    const buf = await file.arrayBuffer();
+    if(ext === "docx"){
+      const result = await mammoth.extractRawText({ arrayBuffer: buf });
+      attachedFile = { name: file.name, kind:"docx", text: result.value || "" };
+    } else if(ext === "xlsx"){
+      const wb = XLSX.read(buf, { type:"array" });
+      const sheetName = wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      const csv = XLSX.utils.sheet_to_csv(sheet);
+      const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:"" });
+      attachedFile = { name: file.name, kind:"xlsx", text: csv.slice(0, 12000), chartData: buildChartData(rows) };
+    } else {
+      attachName.textContent = "Format i papërkrahur (vetëm .docx / .xlsx)";
+      setTimeout(clearAttachment, 2200);
+      return;
+    }
+    attachName.textContent = "📎 " + file.name;
+  }catch(err){
+    attachName.textContent = "Gabim leximi: " + err.message;
+    setTimeout(clearAttachment, 2500);
+  }
+});
+
+attachRemove.addEventListener("click", clearAttachment);
+
+function clearAttachment(){
+  attachedFile = null;
+  attachChip.classList.add("hidden");
+  attachBtn.classList.remove("active");
+}
+
+// Nxjerr labels/vlera nga rreshtat e Excel-it për grafik automatik
+function buildChartData(rows){
+  if(!rows || rows.length < 2) return null;
+  const headers = rows[0];
+  const dataRows = rows.slice(1).filter(r => r.length && r[0] !== "" && r[0] !== undefined);
+  if(!dataRows.length) return null;
+  let valueColIdx = -1;
+  for(let c = 1; c < headers.length; c++){
+    let numCount = 0;
+    dataRows.forEach(r => { if(typeof r[c] === "number") numCount++; });
+    if(numCount > dataRows.length * 0.6){ valueColIdx = c; break; }
+  }
+  if(valueColIdx === -1) return null;
+  const labels = dataRows.map(r => String(r[0])).slice(0, 30);
+  const values = dataRows.map(r => typeof r[valueColIdx] === "number" ? r[valueColIdx] : 0).slice(0, 30);
+  return { labels, values, valueLabel: headers[valueColIdx] || "Vlera" };
+}
+
+function renderChartBubble(chartData){
+  const div = document.createElement("div");
+  div.className = "bubble chart";
+  const canvas = document.createElement("canvas");
+  div.appendChild(canvas);
+  chatLog.appendChild(div);
+  scrollBottom();
+  new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: chartData.labels,
+      datasets: [{ label: chartData.valueLabel, data: chartData.values, backgroundColor: "#FF6A3D" }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: "#E8E2D9" } } },
+      scales: {
+        x: { ticks: { color: "#8A8178" }, grid: { color: "#332D28" } },
+        y: { ticks: { color: "#8A8178" }, grid: { color: "#332D28" } }
+      }
+    }
+  });
+}
+
+// ---------- Regjistrim zanor + transkriptim (Groq Whisper) ----------
+const recordBtn = $("recordBtn");
+const TRANSCRIBE_URL = CONFIG.PROXY_URL.replace(/\/chat$/, "/transcribe");
+let mediaRecorder = null, audioChunks = [], isRecording = false, recTimer = null, recSeconds = 0;
+
+recordBtn.addEventListener("click", async ()=>{
+  if(isRecording){ stopRecording(); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e)=>{ if(e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = async ()=>{
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      await transcribeAndAttach(blob);
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    recSeconds = 0;
+    recordBtn.classList.add("recording");
+    recTimer = setInterval(()=>{
+      recSeconds++;
+      const m = Math.floor(recSeconds/60), s = recSeconds%60;
+      recordBtn.textContent = `⏹️ ${m}:${String(s).padStart(2,"0")}`;
+    }, 1000);
+  }catch(err){
+    attachChip.classList.remove("hidden");
+    attachName.textContent = "S'kam qasje te mikrofoni: " + err.message;
+    setTimeout(clearAttachment, 3000);
+  }
+});
+
+function stopRecording(){
+  if(mediaRecorder && isRecording){ mediaRecorder.stop(); }
+  isRecording = false;
+  clearInterval(recTimer);
+  recordBtn.classList.remove("recording");
+  recordBtn.textContent = "🎙️";
+}
+
+async function transcribeAndAttach(blob){
+  attachChip.classList.remove("hidden");
+  attachName.textContent = "duke transkriptuar bisedën…";
+  try{
+    const form = new FormData();
+    form.append("file", blob, "recording.webm");
+    form.append("model", "whisper-large-v3-turbo");
+    const res = await fetch(TRANSCRIBE_URL, { method:"POST", body: form });
+    if(!res.ok) throw new Error("transkriptim dështoi " + res.status);
+    const data = await res.json();
+    const transcript = data.text || "";
+    if(!transcript.trim()){
+      attachName.textContent = "S'u dëgjua asgjë e qartë";
+      setTimeout(clearAttachment, 2500);
+      return;
+    }
+    attachedFile = { name: "Regjistrim (" + recSeconds + "s)", kind:"docx", text: transcript };
+    attachName.textContent = "🎙️ Transkriptuar (" + Math.round(transcript.length/5) + " fjalë) — shkruaj pyetjen ose dërgo direkt";
+  }catch(err){
+    attachName.textContent = "Gabim transkriptimi: " + err.message;
+    setTimeout(clearAttachment, 3000);
+  }
+}
+
+
 let sessionKey = null; // AES-GCM CryptoKey, jetgjatë vetëm në memorie, jo në disk
 
 // ============================================================
@@ -215,12 +369,33 @@ function scrollBottom(){ chatLog.scrollTop = chatLog.scrollHeight; }
 composer.addEventListener("submit", async (e)=>{
   e.preventDefault();
   const text = input.value.trim();
-  if(!text) return;
+  if(!text && !attachedFile) return;
   input.value = "";
   input.style.height = "auto";
 
-  messages.push({ role:"user", text });
-  renderBubble("user", text);
+  let sendText = text;
+  let displayText = text;
+
+  if(attachedFile){
+    const label = "📎 " + attachedFile.name;
+    displayText = text ? (text + "\n\n" + label) : label;
+
+    if(attachedFile.kind === "xlsx"){
+      if(attachedFile.chartData) renderChartBubble(attachedFile.chartData);
+      const question = text || "Analizo këto të dhëna dhe nxirr vëzhgimet kryesore shkurt, në shqip.";
+      sendText = question + "\n\n--- Të dhënat nga " + attachedFile.name + " (CSV) ---\n" + attachedFile.text + "\n--- fund ---";
+    } else {
+      const isTranscript = attachedFile.name.startsWith("Regjistrim");
+      const question = text || (isTranscript
+        ? "Përmblidh këtë bisedë: pikat kryesore, vendimet, dhe hapat e ardhshëm, në shqip."
+        : "Përmblidh këtë dokument shkurt, në shqip.");
+      sendText = question + "\n\n--- Përmbajtja e " + attachedFile.name + " ---\n" + attachedFile.text.slice(0, 10000) + "\n--- fund ---";
+    }
+    clearAttachment();
+  }
+
+  messages.push({ role:"user", text: sendText });
+  renderBubble("user", displayText);
   saveHistory();
 
   const thinking = renderBubble("ai", "…duke menduar", true);
